@@ -1,29 +1,67 @@
 use itertools::Itertools;
-use std::{fs, ops::Range, path::Path};
+use std::{collections::BTreeSet, fs, ops::Range, path::Path};
 
 use regex::Regex;
 
 #[derive(Debug)]
 struct MapRange {
-    dest_start: u32,
-    source_start: u32,
-    len: u32,
+    dest_start: u64,
+    source_start: u64,
+    len: u64,
 }
 
-fn map_with(n: &u32, map: &Vec<MapRange>) -> u32 {
+fn map_num(n: u64, map: &Vec<MapRange>) -> u64 {
     for mapping in map.iter() {
-        let distance: i64 = *n as i64 - mapping.source_start as i64;
-        if distance >= 0 && distance < mapping.len as i64 {
-            return mapping.dest_start + distance as u32;
+        let distance: i64 = n as i64 - mapping.source_start as i64;
+
+        if distance < 0 || distance as u64 >= mapping.len {
+            continue;
+        }
+        return mapping.dest_start + distance as u64;
+    }
+    return n;
+}
+
+fn map_range(range: Range<u64>, map: &Vec<MapRange>) -> Vec<Range<u64>> {
+    // based on https://github.com/andypymont/advent2023-rust/blob/main/src/bin/05.rs
+    // cuts ranges whenever they intersect with mappings
+    let mut cut_positions: BTreeSet<u64> = BTreeSet::new();
+    for map in map.iter() {
+        let source_end = map.source_start + map.len;
+
+        // range outside mapping
+        if range.end < map.source_start || range.start > source_end {
+            continue;
+        }
+
+        // range overlaps with start
+        if map.source_start > range.start {
+            cut_positions.insert(map.source_start);
+        }
+
+        // range overlaps with end
+        if source_end < range.end {
+            cut_positions.insert(source_end);
         }
     }
-    return *n;
-}
+    cut_positions.insert(range.end);
 
-// struct SeedRange {
-//     start: u32,
-//     end: u32,
-// }
+    let mut output = Vec::new();
+    let mut current = range.start;
+
+    // we craft new ranges which have been mapped from these cuts
+    for position in cut_positions {
+        // start is mapped like a normal number
+        let start = map_num(current, map);
+        // and end is put at the cut position while
+        // accounting for how much mapping moved the start value
+        let end: u64 = (position as i64 + (start as i64 - current as i64)) as u64;
+        output.push(start..end);
+        current = position;
+    }
+
+    return output;
+}
 
 pub fn solve(file_path: &Path) {
     // AOC 2023 Day 5 P1+P2
@@ -37,25 +75,13 @@ pub fn solve(file_path: &Path) {
 
     // first line has seeds on one line
     let first_line = lines.next().expect("no seed list");
-    let mut seeds: Vec<u32> = first_line
+    let seeds: Vec<u64> = first_line
         .split_once(": ")
         .expect("incorrect seed list")
         .1
         .split(" ")
-        .map(|it| it.parse::<u32>().expect("incorrect seed list"))
+        .map(|it| it.parse::<u64>().expect("incorrect seed list"))
         .collect();
-
-    // p2 seed ranges
-    let p2_seed_ranges: Vec<Range<u32>> = seeds
-        .chunks_exact(2)
-        // first number is range start, second is range length
-        .map(|it| it[0]..(it[0] + it[1]))
-        .collect();
-
-    // ranges are merged based on overlapping
-    // p2_seed_ranges.sort_by(|a, b| a.start.cmp(&b.start));
-
-    // let mut p2_seeds: Vec<u32> = p2_seed_ranges.into_iter().flatten().collect();
 
     // rest of the lines are blocks of the mappings
     // which we save each to a separate list
@@ -68,50 +94,43 @@ pub fn solve(file_path: &Path) {
         }
         if let Some(cap) = range_re.captures(line) {
             let map = MapRange {
-                dest_start: cap[1].parse::<u32>().unwrap(),
-                source_start: cap[2].parse::<u32>().unwrap(),
-                len: cap[3].parse::<u32>().unwrap(),
+                dest_start: cap[1].parse::<u64>().unwrap(),
+                source_start: cap[2].parse::<u64>().unwrap(),
+                len: cap[3].parse::<u64>().unwrap(),
             };
 
             maps.last_mut().unwrap().push(map);
         }
     }
 
-    for map in maps.iter() {
-        for seed in seeds.iter_mut() {
-            // confusing, but maps is a list of maps, and map is a list of mappings
-            for mapping in map.iter() {
-                let distance: i64 = *seed as i64 - mapping.source_start as i64;
-
-                if distance < 0 || distance as u32 >= mapping.len {
-                    continue;
-                }
-
-                *seed = mapping.dest_start + distance as u32;
-                break;
-            }
-        }
+    let mut smallest = u64::MAX;
+    for seed in seeds.iter() {
+        // let mut seed_ = *seed;
+        // confusing, but maps is a list of maps which are lists of mappings
+        smallest = smallest.min(maps.iter().fold(*seed, |acc, map| map_num(acc, map)));
     }
 
-    // same but for p2 seeds
-    let mut min = u32::MAX;
-    for mut seed in p2_seed_ranges.into_iter().flatten() {
-        for map in maps.iter() {
-            // confusing, but maps is a list of maps, and map is a list of mappings
-            for mapping in map.iter() {
-                let distance: i64 = seed as i64 - mapping.source_start as i64;
+    // p2 seed ranges
+    let mut splits: Vec<Range<u64>> = seeds
+        .chunks_exact(2)
+        // first number is range start, second is range length
+        .map(|it| it[0]..(it[0] + it[1]))
+        .collect();
+    let mut next_round: Vec<Range<u64>> = vec![];
 
-                if distance < 0 || distance as u32 >= mapping.len {
-                    continue;
-                }
-
-                seed = mapping.dest_start + distance as u32;
-                break;
-            }
+    for map in maps {
+        // we calculate stuff by using ranges which are split so that
+        // portions of them move based on mappings
+        for range in splits.iter() {
+            next_round.extend(map_range(range.clone(), &map))
         }
-        min = min.min(seed)
+        splits = next_round;
+        next_round = Vec::new();
     }
 
-    println!("First part results: {}", seeds.iter().min().unwrap());
-    println!("Second part results: {}\n", min)
+    println!("First part results: {smallest}");
+    println!(
+        "Second part results: {:?}\n",
+        splits.iter().min_by_key(|it| it.start).unwrap().start
+    );
 }
