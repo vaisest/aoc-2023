@@ -46,23 +46,16 @@ pub fn solve(file_path: &Path) {
         .collect();
 
     // p2 seed ranges
-    let mut p2_seed_ranges: Vec<Range<u32>> = seeds
+    let p2_seed_ranges: Vec<Range<u32>> = seeds
         .chunks_exact(2)
         // first number is range start, second is range length
         .map(|it| it[0]..(it[0] + it[1]))
         .collect();
-    // let mut p2_seeds: Vec<u32> = p2_seed_ranges.into_iter().flatten().collect();
 
     // ranges are merged based on overlapping
-    p2_seed_ranges.sort_by(|a, b| a.start.cmp(&b.start));
+    // p2_seed_ranges.sort_by(|a, b| a.start.cmp(&b.start));
 
-    let mut p2_seeds: Vec<u32> = merged.into_iter().flatten().collect();
-    println!("{}", p2_seeds.len());
-    // .flatten()
-    // // .sort()
-    // .collect();
-
-    // println!("{p2_seeds:?}, {}", p2_seeds.len());
+    // let mut p2_seeds: Vec<u32> = p2_seed_ranges.into_iter().flatten().collect();
 
     // rest of the lines are blocks of the mappings
     // which we save each to a separate list
@@ -84,23 +77,8 @@ pub fn solve(file_path: &Path) {
         }
     }
 
-    for map in maps {
+    for map in maps.iter() {
         for seed in seeds.iter_mut() {
-            // confusing, but maps is a list of maps, and map is a list of mappings
-            for mapping in map.iter() {
-                let distance: i64 = *seed as i64 - mapping.source_start as i64;
-
-                if distance < 0 || distance as u32 >= mapping.len {
-                    continue;
-                }
-
-                *seed = mapping.dest_start + distance as u32;
-                break;
-            }
-        }
-
-        // same but for p2 seeds
-        for seed in p2_seeds.iter_mut() {
             // confusing, but maps is a list of maps, and map is a list of mappings
             for mapping in map.iter() {
                 let distance: i64 = *seed as i64 - mapping.source_start as i64;
@@ -115,6 +93,25 @@ pub fn solve(file_path: &Path) {
         }
     }
 
+    // same but for p2 seeds
+    let mut min = u32::MAX;
+    for mut seed in p2_seed_ranges.into_iter().flatten() {
+        for map in maps.iter() {
+            // confusing, but maps is a list of maps, and map is a list of mappings
+            for mapping in map.iter() {
+                let distance: i64 = seed as i64 - mapping.source_start as i64;
+
+                if distance < 0 || distance as u32 >= mapping.len {
+                    continue;
+                }
+
+                seed = mapping.dest_start + distance as u32;
+                break;
+            }
+        }
+        min = min.min(seed)
+    }
+
     println!("First part results: {}", seeds.iter().min().unwrap());
-    println!("Second part results: {}\n", p2_seeds.iter().min().unwrap())
+    println!("Second part results: {}\n", min)
 }
