@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use std::{collections::BTreeSet, fs, ops::Range, path::Path};
 
 use regex::Regex;
