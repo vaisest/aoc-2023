@@ -8,6 +8,7 @@ fn main() {
     solutions::day03::solve(Path::new("inputs/input03.txt"));
     solutions::day04::solve(Path::new("inputs/input04.txt"));
     solutions::day05::solve(Path::new("inputs/input05.txt"));
+    solutions::day06::solve(Path::new("inputs/input06.txt"));
     solutions::day19::solve(Path::new("inputs/input19.txt"));
     println!("Executed in {:?}", start.elapsed());
 }
