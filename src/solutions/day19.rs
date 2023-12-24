@@ -106,5 +106,6 @@ pub fn solve(file_path: &Path) {
 
     let result = accepted.iter().map(|it| it.sum()).sum::<u64>();
     println!("First part results: {:?}", result);
+    // TODO: P2
     //println!("Second part results: {results2}\n")
 }
