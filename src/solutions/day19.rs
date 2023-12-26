@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::Path};
+use std::{collections::HashMap, fs, ops::RangeInclusive, path::Path};
 
 use itertools::Itertools;
 use regex::Regex;
@@ -9,6 +9,13 @@ struct Part {
     m: u64,
     a: u64,
     s: u64,
+}
+
+struct RangePart {
+    x: RangeInclusive<u16>,
+    m: RangeInclusive<u16>,
+    a: RangeInclusive<u16>,
+    s: RangeInclusive<u16>,
 }
 
 impl Part {
@@ -106,6 +113,18 @@ pub fn solve(file_path: &Path) {
 
     let result = accepted.iter().map(|it| it.sum()).sum::<u64>();
     println!("First part results: {:?}", result);
+
     // TODO: P2
+
+    let range_parts = vec![RangePart {
+        x: 0..=4000,
+        m: 0..=4000,
+        a: 0..=4000,
+        s: 0..=4000,
+    }];
+
+    // loop {
+
+    // }
     //println!("Second part results: {results2}\n")
 }
